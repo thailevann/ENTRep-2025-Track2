@@ -1,4 +1,4 @@
-# ENTRep 2025 Track 2 - Vector Field Training
+# ENTRep Track 2: Image-to-Image Retrieval
 
 <div align="center">
 <img src="assets/leader_board.png" alt="Leader Board" width="600">
