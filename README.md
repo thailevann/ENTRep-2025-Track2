@@ -1,6 +1,8 @@
 # ENTRep 2025 Track 2 - Vector Field Training
 
+<div align="center">
 <img src="assets/leader_board.png" alt="Leader Board" width="600">
+</div>
 
 This repository contains the training code for ENTRep 2025 Track 2, implementing a Vector Field model with Flow Matching for entity recognition using CLIP embeddings.
 
@@ -13,30 +15,30 @@ The model uses:
 - **Gaussian Fourier Projection** for time encoding
 - **Euler Integration** with RK4 method for flow simulation
 
-## Files
+## Project Structure
 
-### Model Definitions
-- `models/vector_field.py` - Vector Field and Gaussian Fourier Projection models
-- `models/rerank_model.py` - Ensemble reranking model for classification
-- `models/__init__.py` - Model package initialization
-
-### Utility Functions
-- `utils/common.py` - Common utilities and shared functions
-- `utils/data_processing.py` - Data loading, processing, and triplet generation
-- `utils/prediction_utils.py` - Prediction and similarity calculation utilities
-- `utils/training_utils.py` - Training-specific utilities and helpers
-- `utils/__init__.py` - Utils package initialization
-
-### Main Scripts
-- `train.py` - Main training script
-- `predict.py` - Main prediction/inference script
-
-### Original Notebooks
-- `notebooks/train.ipynb` - Original training notebook
-- `notebooks/predict.ipynb` - Original prediction notebook
-
-### Other Files
-- `requirements.txt` - Python dependencies
+```
+ENTRep-2025-Track2/
+├── models/
+│   ├── __init__.py                 # Model package initialization
+│   ├── vector_field.py            # Vector Field and Gaussian Fourier Projection models
+│   └── rerank_model.py            # Ensemble reranking model for classification
+├── utils/
+│   ├── __init__.py                 # Utils package initialization
+│   ├── common.py                   # Common utilities and shared functions
+│   ├── data_processing.py          # Data loading, processing, and triplet generation
+│   ├── prediction_utils.py         # Prediction and similarity calculation utilities
+│   └── training_utils.py           # Training-specific utilities and helpers
+├── notebooks/
+│   ├── train.ipynb                 # Original training notebook
+│   └── predict.ipynb               # Original prediction notebook
+├── assets/
+│   └── leader_board.png            # Competition leaderboard image
+├── train.py                        # Main training script
+├── predict.py                      # Main prediction/inference script
+├── requirements.txt                # Python dependencies
+└── README.md                       # Project documentation
+```
 
 ## Installation
 
@@ -151,12 +153,6 @@ The model recognizes 7 classes:
 - `vc-closed` (4)
 - `vc-open` (5)
 
-## Model Output
-
-The training produces:
-- `best_vf.pt` - Best model checkpoint during training
-- `vf_model.pth` - Final trained model
-
 ## Key Features
 
 1. **Hard Negative Mining**: Uses predefined negative class relationships
@@ -164,17 +160,11 @@ The training produces:
 3. **Flow Matching**: Time-dependent vector field learning
 4. **Robust Training**: Early stopping, gradient clipping, LR scheduling
 
-## Dependencies
+## Contributors
 
-- PyTorch >= 1.13.0
-- CLIP (OpenAI)
-- pytorch-metric-learning
-- scikit-learn
-- Pillow
-- tqdm
-- timm (for reranking models)
-- matplotlib (optional, for visualization)
-- gdown (for downloading datasets and models)
+- [@thailevann](https://github.com/thailevann)
+- [@wterrr](https://github.com/wterrr)
+- [@builamquangngoc91](https://github.com/builamquangngoc91)
 
 ## Citation
 
