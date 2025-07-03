@@ -217,133 +217,22 @@ def load_checkpoint(model, optimizer, filepath, device):
     
     return epoch, loss
 
-def compute_classification_accuracy(model, triplets, cls_map, class2idx, device, steps=10):
+
+
+
+def log_training_progress(epoch, train_loss, test_loss, lr, log_interval=10):
     """
-    Compute classification accuracy for triplet learning
-    
-    Args:
-        model: Vector field model
-        triplets: List of triplets
-        cls_map: Class mapping dictionary
-        class2idx: Class to index mapping
-        device: Device to run on
-        steps: Integration steps
-        
-    Returns:
-        float: Classification accuracy (0.0 to 1.0)
-    """
-    model.eval()
-    total_correct = 0
-    total_samples = 0
-
-    with torch.no_grad():
-        for i in range(0, len(triplets), 64):
-            batch = triplets[i : i + 64]
-            if len(batch) == 0:
-                continue
-
-            batch_embeddings, batch_labels = get_embeddings_labels_from_triplets(batch, cls_map, class2idx)
-            if batch_embeddings is None or len(batch_embeddings) == 0:
-                continue
-
-            batch_embeddings = batch_embeddings.to(device).float()
-            batch_labels = batch_labels.to(device).long()
-
-            # Apply vector field transformation
-            pred_embeddings = euler_integration(batch_embeddings, model, steps=steps)
-            
-            # For triplet learning, we can use similarity-based classification
-            # Group by anchor, positive, negative triplets
-            batch_size = len(batch)
-            anchors = pred_embeddings[::3]  # Every 3rd starting from 0
-            positives = pred_embeddings[1::3]  # Every 3rd starting from 1
-            negatives = pred_embeddings[2::3]  # Every 3rd starting from 2
-            
-            # Compute similarities
-            anchor_pos_sim = F.cosine_similarity(anchors, positives, dim=1)
-            anchor_neg_sim = F.cosine_similarity(anchors, negatives, dim=1)
-            
-            # Count correct triplets (anchor closer to positive than negative)
-            correct_triplets = (anchor_pos_sim > anchor_neg_sim).sum().item()
-            total_correct += correct_triplets
-            total_samples += batch_size
-
-    return total_correct / total_samples if total_samples > 0 else 0.0
-
-def compute_triplet_accuracy(model, triplets, cls_map, class2idx, device, steps=10):
-    """
-    Compute triplet accuracy - percentage of correctly ordered triplets
-    
-    Args:
-        model: Vector field model
-        triplets: List of triplets
-        cls_map: Class mapping dictionary
-        class2idx: Class to index mapping
-        device: Device to run on
-        steps: Integration steps
-        
-    Returns:
-        float: Triplet accuracy (0.0 to 1.0)
-    """
-    return compute_classification_accuracy(model, triplets, cls_map, class2idx, device, steps)
-
-def compute_embedding_classification_accuracy(embeddings, labels, num_classes):
-    """
-    Compute classification accuracy using nearest centroid classification
-    
-    Args:
-        embeddings: Tensor of embeddings [N, D]
-        labels: Tensor of true labels [N]
-        num_classes: Number of classes
-        
-    Returns:
-        float: Classification accuracy
-    """
-    embeddings = F.normalize(embeddings, dim=1)
-    
-    # Compute class centroids
-    centroids = []
-    for class_idx in range(num_classes):
-        class_mask = (labels == class_idx)
-        if class_mask.sum() > 0:
-            class_embeddings = embeddings[class_mask]
-            centroid = class_embeddings.mean(dim=0)
-            centroids.append(F.normalize(centroid.unsqueeze(0), dim=1))
-        else:
-            # Random centroid if no samples for this class
-            centroids.append(F.normalize(torch.randn(1, embeddings.size(1)), dim=1))
-    
-    centroids = torch.cat(centroids, dim=0)  # [num_classes, D]
-    
-    # Compute similarities to centroids
-    similarities = torch.mm(embeddings, centroids.t())  # [N, num_classes]
-    predictions = torch.argmax(similarities, dim=1)
-    
-    accuracy = (predictions == labels).float().mean().item()
-    return accuracy
-
-def log_training_progress(epoch, train_loss, test_loss, lr, train_acc=None, test_acc=None, log_interval=10):
-    """
-    Log training progress including accuracy/recall metrics
+    Log training progress
     
     Args:
         epoch: Current epoch
         train_loss: Training loss
         test_loss: Test loss
         lr: Current learning rate
-        train_acc: Training accuracy/recall (optional)
-        test_acc: Test accuracy/recall (optional)
         log_interval: How often to log
     """
     if (epoch + 1) % log_interval == 0:
-        log_msg = f"Epoch {epoch + 1}: Train Loss = {train_loss:.4f}, Test Loss = {test_loss:.4f}"
-        
-        if train_acc is not None:
-            log_msg += f", Train Recall@1 = {train_acc:.4f}"
-        if test_acc is not None:
-            log_msg += f", Test Recall@1 = {test_acc:.4f}"
-            
-        log_msg += f", LR = {lr:.1e}"
+        log_msg = f"Epoch {epoch + 1}: Train Loss = {train_loss:.4f}, Test Loss = {test_loss:.4f}, LR = {lr:.1e}"
         print(log_msg)
 
 # Example usage

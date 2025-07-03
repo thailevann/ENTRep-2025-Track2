@@ -6,8 +6,6 @@ numpy>=1.21.0
 # CLIP Model
 git+https://github.com/openai/CLIP.git
 
-# Metric Learning
-pytorch-metric-learning>=1.6.0
 
 # Data Processing
 Pillow>=9.0.0

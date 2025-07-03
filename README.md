@@ -1,5 +1,7 @@
 # ENTRep 2025 Track 2 - Vector Field Training
 
+<img src="assets/leader_board.png" alt="Leader Board" width="600">
+
 This repository contains the training code for ENTRep 2025 Track 2, implementing a Vector Field model with Flow Matching for entity recognition using CLIP embeddings.
 
 ## Overview
