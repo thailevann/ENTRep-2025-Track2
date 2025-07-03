@@ -43,7 +43,11 @@ from .prediction_utils import (
     get_top_k_similar,
     create_submission_format,
     compute_embedding_statistics,
-    filter_predictions_by_confidence
+    filter_predictions_by_confidence,
+    compute_accuracy_at_k,
+    compute_accuracy_at_1,
+    evaluate_retrieval_accuracy,
+    compute_classification_accuracy_from_embeddings
 )
 
 # Import from training utilities
@@ -56,7 +60,10 @@ from .training_utils import (
     check_early_stopping,
     save_checkpoint,
     load_checkpoint,
-    log_training_progress
+    log_training_progress,
+    compute_classification_accuracy,
+    compute_triplet_accuracy,
+    compute_embedding_classification_accuracy
 )
 
 __all__ = [
@@ -96,6 +103,10 @@ __all__ = [
     'create_submission_format',
     'compute_embedding_statistics',
     'filter_predictions_by_confidence',
+    'compute_accuracy_at_k',
+    'compute_accuracy_at_1',
+    'evaluate_retrieval_accuracy',
+    'compute_classification_accuracy_from_embeddings',
     
     # Training utilities
     'euler_integration',
@@ -106,5 +117,8 @@ __all__ = [
     'check_early_stopping',
     'save_checkpoint',
     'load_checkpoint',
-    'log_training_progress'
+    'log_training_progress',
+    'compute_classification_accuracy',
+    'compute_triplet_accuracy',
+    'compute_embedding_classification_accuracy'
 ]

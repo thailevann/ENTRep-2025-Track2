@@ -30,6 +30,8 @@ from utils import (
     check_early_stopping,
     save_checkpoint,
     log_training_progress,
+    compute_classification_accuracy,
+    compute_triplet_accuracy,
     CLASS_TO_IDX
 )
 
@@ -133,9 +135,18 @@ def train_model(train_triplets, test_triplets, train_cls_map, test_cls_map, devi
             epoch_loss += loss.item()
             num_batches += 1
 
-        # Compute test loss after each epoch 
+        # Compute test loss and accuracy after each epoch 
         avg_loss = epoch_loss / max(1, num_batches)
         test_loss = compute_triplet_loss(vf, test_triplets, loss_func, test_cls_map, CLASS_TO_IDX, device, steps=10)
+        
+        # Compute accuracy metrics (every 5 epochs to save time)
+        train_acc = None
+        test_acc = None
+        if (epoch + 1) % 5 == 0:
+            # Compute training accuracy on a subset to save time
+            train_subset = train_triplets[:min(500, len(train_triplets))]
+            train_acc = compute_triplet_accuracy(vf, train_subset, train_cls_map, CLASS_TO_IDX, device, steps=10)
+            test_acc = compute_triplet_accuracy(vf, test_triplets, test_cls_map, CLASS_TO_IDX, device, steps=10)
 
         # Update learning rate
         lr_reduced = update_learning_rate(optimizer, scheduler, test_loss, epoch, warmup_epochs)
@@ -155,8 +166,9 @@ def train_model(train_triplets, test_triplets, train_cls_map, test_cls_map, devi
             print(f"Early stopping at epoch {epoch + 1}")
             break
         
-        # Log progress
-        log_training_progress(epoch, avg_loss, test_loss, optimizer.param_groups[0]['lr'])
+        # Log progress with accuracy metrics
+        log_training_progress(epoch, avg_loss, test_loss, optimizer.param_groups[0]['lr'], 
+                            train_acc=train_acc, test_acc=test_acc)
 
     # Save final model
     torch.save(vf.state_dict(), "vf_model.pth")

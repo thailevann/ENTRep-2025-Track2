@@ -16,7 +16,9 @@ from models import VectorField, RerankModel
 from utils import (
     setup_device_and_clip,
     normalize_embeddings,
-    save_json
+    save_json,
+    compute_accuracy_at_1,
+    evaluate_retrieval_accuracy
 )
 
 def preprocess_and_embed(image_path, model, preprocess, vf, device):
@@ -158,6 +160,7 @@ def perform_retrieval(img_names, embeddings, predictor, models, image_dir, top_k
     """Perform image retrieval with class-based reranking"""
     print("Performing image retrieval with reranking...")
     retrieval_results = {}
+    retrieval_results_top_k = {}  # Store top-k for accuracy evaluation
 
     for i, query_name in enumerate(tqdm(img_names, desc="Retrieving similar images")):
         query_emb = embeddings[i].unsqueeze(0)  # Shape: [1, D]
@@ -180,6 +183,9 @@ def perform_retrieval(img_names, embeddings, predictor, models, image_dir, top_k
             candidate_names.append(img_names[idx_adjusted])
             candidate_scores.append(topk_scores[j])
 
+        # Store top-k results for evaluation
+        retrieval_results_top_k[query_name] = candidate_names
+
         # Re-rank candidates using class prediction
         reranked = rerank_topk_by_class(
             candidate_names, candidate_scores,
@@ -190,7 +196,41 @@ def perform_retrieval(img_names, embeddings, predictor, models, image_dir, top_k
         retrieval_results[query_name] = reranked[0]
 
     print(f"Retrieval completed for {len(retrieval_results)} images")
-    return retrieval_results
+    return retrieval_results, retrieval_results_top_k
+
+def evaluate_retrieval_performance(retrieval_results_top_k, ground_truth_file=None):
+    """
+    Evaluate retrieval performance if ground truth is available
+    
+    Args:
+        retrieval_results_top_k: Dictionary of query -> [top-k results]
+        ground_truth_file: Path to ground truth file (optional)
+        
+    Returns:
+        dict: Evaluation metrics
+    """
+    if ground_truth_file is None or not os.path.exists(ground_truth_file):
+        print("No ground truth file provided or file not found. Skipping accuracy evaluation.")
+        return None
+    
+    try:
+        # Load ground truth
+        import json
+        with open(ground_truth_file, 'r') as f:
+            ground_truth = json.load(f)
+        
+        # Evaluate retrieval accuracy
+        metrics = evaluate_retrieval_accuracy(retrieval_results_top_k, ground_truth, k_values=[1, 3, 5])
+        
+        print("\n=== Retrieval Performance Metrics ===")
+        for metric_name, value in metrics.items():
+            print(f"{metric_name}: {value:.4f}")
+        
+        return metrics
+        
+    except Exception as e:
+        print(f"Error evaluating retrieval performance: {e}")
+        return None
 
 def main():
     """Main prediction pipeline"""
@@ -234,11 +274,21 @@ def main():
     
     # Step 6: Perform retrieval with reranking
     print("\n6. Performing retrieval...")
-    retrieval_results = perform_retrieval(img_names, embeddings, predictor, models, image_dir)
+    retrieval_results, retrieval_results_top_k = perform_retrieval(img_names, embeddings, predictor, models, image_dir)
     
-    # Step 7: Save results
-    print("\n7. Saving results...")
+    # Step 7: Evaluate performance (if ground truth available)
+    print("\n7. Evaluating performance...")
+    ground_truth_file = "ground_truth.json"  # Optional ground truth file
+    metrics = evaluate_retrieval_performance(retrieval_results_top_k, ground_truth_file)
+    
+    # Step 8: Save results
+    print("\n8. Saving results...")
     save_json(retrieval_results, output_json)
+    
+    # Save additional metrics if available
+    if metrics:
+        metrics_file = output_json.replace('.json', '_metrics.json')
+        save_json(metrics, metrics_file)
     
     print("\n=== Prediction pipeline completed successfully! ===")
     
@@ -246,6 +296,13 @@ def main():
     print(f"\nSample results (first 5):")
     for i, (query, result) in enumerate(list(retrieval_results.items())[:5]):
         print(f"  {query} → {result}")
+    
+    # Print final summary
+    if metrics:
+        print(f"\nFinal Performance Summary:")
+        print(f"  ACC@1: {metrics.get('accuracy@1', 'N/A'):.4f}")
+        print(f"  ACC@3: {metrics.get('accuracy@3', 'N/A'):.4f}")
+        print(f"  ACC@5: {metrics.get('accuracy@5', 'N/A'):.4f}")
 
 if __name__ == "__main__":
     main()
