@@ -44,8 +44,11 @@ from .prediction_utils import (
     create_submission_format,
     compute_embedding_statistics,
     filter_predictions_by_confidence,
+    compute_recall_at_k,
+    compute_recall_at_1,
     compute_accuracy_at_k,
     compute_accuracy_at_1,
+    evaluate_retrieval_recall,
     evaluate_retrieval_accuracy,
     compute_classification_accuracy_from_embeddings
 )
@@ -103,8 +106,11 @@ __all__ = [
     'create_submission_format',
     'compute_embedding_statistics',
     'filter_predictions_by_confidence',
+    'compute_recall_at_k',
+    'compute_recall_at_1',
     'compute_accuracy_at_k',
     'compute_accuracy_at_1',
+    'evaluate_retrieval_recall',
     'evaluate_retrieval_accuracy',
     'compute_classification_accuracy_from_embeddings',
     

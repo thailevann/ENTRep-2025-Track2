@@ -17,7 +17,8 @@ from utils import (
     setup_device_and_clip,
     normalize_embeddings,
     save_json,
-    compute_accuracy_at_1,
+    compute_recall_at_1,
+    evaluate_retrieval_recall,
     evaluate_retrieval_accuracy
 )
 
@@ -219,8 +220,8 @@ def evaluate_retrieval_performance(retrieval_results_top_k, ground_truth_file=No
         with open(ground_truth_file, 'r') as f:
             ground_truth = json.load(f)
         
-        # Evaluate retrieval accuracy
-        metrics = evaluate_retrieval_accuracy(retrieval_results_top_k, ground_truth, k_values=[1, 3, 5])
+        # Evaluate retrieval recall
+        metrics = evaluate_retrieval_recall(retrieval_results_top_k, ground_truth, k_values=[1, 3, 5])
         
         print("\n=== Retrieval Performance Metrics ===")
         for metric_name, value in metrics.items():
@@ -300,9 +301,9 @@ def main():
     # Print final summary
     if metrics:
         print(f"\nFinal Performance Summary:")
-        print(f"  ACC@1: {metrics.get('accuracy@1', 'N/A'):.4f}")
-        print(f"  ACC@3: {metrics.get('accuracy@3', 'N/A'):.4f}")
-        print(f"  ACC@5: {metrics.get('accuracy@5', 'N/A'):.4f}")
+        print(f"  Recall@1: {metrics.get('recall@1', 'N/A'):.4f}")
+        print(f"  Recall@3: {metrics.get('recall@3', 'N/A'):.4f}")
+        print(f"  Recall@5: {metrics.get('recall@5', 'N/A'):.4f}")
 
 if __name__ == "__main__":
     main()

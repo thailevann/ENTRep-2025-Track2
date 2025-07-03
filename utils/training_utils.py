@@ -324,24 +324,24 @@ def compute_embedding_classification_accuracy(embeddings, labels, num_classes):
 
 def log_training_progress(epoch, train_loss, test_loss, lr, train_acc=None, test_acc=None, log_interval=10):
     """
-    Log training progress including accuracy metrics
+    Log training progress including accuracy/recall metrics
     
     Args:
         epoch: Current epoch
         train_loss: Training loss
         test_loss: Test loss
         lr: Current learning rate
-        train_acc: Training accuracy (optional)
-        test_acc: Test accuracy (optional)
+        train_acc: Training accuracy/recall (optional)
+        test_acc: Test accuracy/recall (optional)
         log_interval: How often to log
     """
     if (epoch + 1) % log_interval == 0:
         log_msg = f"Epoch {epoch + 1}: Train Loss = {train_loss:.4f}, Test Loss = {test_loss:.4f}"
         
         if train_acc is not None:
-            log_msg += f", Train ACC@1 = {train_acc:.4f}"
+            log_msg += f", Train Recall@1 = {train_acc:.4f}"
         if test_acc is not None:
-            log_msg += f", Test ACC@1 = {test_acc:.4f}"
+            log_msg += f", Test Recall@1 = {test_acc:.4f}"
             
         log_msg += f", LR = {lr:.1e}"
         print(log_msg)

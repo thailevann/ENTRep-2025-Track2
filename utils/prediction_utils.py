@@ -105,9 +105,9 @@ def filter_predictions_by_confidence(predictions, confidence_threshold=0.5):
     
     return filtered
 
-def compute_accuracy_at_k(predictions, ground_truth, k=1):
+def compute_recall_at_k(predictions, ground_truth, k=1):
     """
-    Compute Accuracy@K metric
+    Compute Recall@K metric for retrieval tasks
     
     Args:
         predictions: Dictionary or tensor of predictions
@@ -115,7 +115,7 @@ def compute_accuracy_at_k(predictions, ground_truth, k=1):
         k: Number of top predictions to consider
         
     Returns:
-        float: Accuracy@K score (0.0 to 1.0)
+        float: Recall@K score (0.0 to 1.0)
     """
     if isinstance(predictions, dict) and isinstance(ground_truth, dict):
         # Handle dictionary format (query_id -> prediction/truth)
@@ -166,9 +166,36 @@ def compute_accuracy_at_k(predictions, ground_truth, k=1):
     else:
         raise ValueError("Predictions and ground_truth must both be dicts or both be tensors")
 
+def compute_recall_at_1(predictions, ground_truth):
+    """
+    Compute Recall@1 metric (top-1 recall)
+    
+    Args:
+        predictions: Dictionary or tensor of predictions
+        ground_truth: Dictionary or tensor of ground truth labels
+        
+    Returns:
+        float: Recall@1 score (0.0 to 1.0)
+    """
+    return compute_recall_at_k(predictions, ground_truth, k=1)
+
+def compute_accuracy_at_k(predictions, ground_truth, k=1):
+    """
+    Compute Accuracy@K metric for classification tasks
+    
+    Args:
+        predictions: Dictionary or tensor of predictions
+        ground_truth: Dictionary or tensor of ground truth labels
+        k: Number of top predictions to consider
+        
+    Returns:
+        float: Accuracy@K score (0.0 to 1.0)
+    """
+    return compute_recall_at_k(predictions, ground_truth, k)
+
 def compute_accuracy_at_1(predictions, ground_truth):
     """
-    Compute Accuracy@1 metric (top-1 accuracy)
+    Compute Accuracy@1 metric (top-1 accuracy) for classification tasks
     
     Args:
         predictions: Dictionary or tensor of predictions
@@ -177,11 +204,32 @@ def compute_accuracy_at_1(predictions, ground_truth):
     Returns:
         float: Accuracy@1 score (0.0 to 1.0)
     """
-    return compute_accuracy_at_k(predictions, ground_truth, k=1)
+    return compute_recall_at_k(predictions, ground_truth, k=1)
+
+def evaluate_retrieval_recall(retrieval_results, ground_truth, k_values=[1, 5, 10]):
+    """
+    Evaluate retrieval recall at multiple k values
+    
+    Args:
+        retrieval_results: Dictionary mapping query_id -> [list of retrieved items]
+        ground_truth: Dictionary mapping query_id -> correct item
+        k_values: List of k values to evaluate
+        
+    Returns:
+        dict: Dictionary with recall@k for each k value
+    """
+    metrics = {}
+    
+    for k in k_values:
+        recall_at_k = compute_recall_at_k(retrieval_results, ground_truth, k=k)
+        metrics[f'recall@{k}'] = recall_at_k
+    
+    return metrics
 
 def evaluate_retrieval_accuracy(retrieval_results, ground_truth, k_values=[1, 5, 10]):
     """
-    Evaluate retrieval accuracy at multiple k values
+    Evaluate retrieval accuracy at multiple k values (kept for backward compatibility)
+    Note: For retrieval tasks, consider using evaluate_retrieval_recall instead
     
     Args:
         retrieval_results: Dictionary mapping query_id -> [list of retrieved items]
@@ -191,13 +239,7 @@ def evaluate_retrieval_accuracy(retrieval_results, ground_truth, k_values=[1, 5,
     Returns:
         dict: Dictionary with accuracy@k for each k value
     """
-    metrics = {}
-    
-    for k in k_values:
-        acc_at_k = compute_accuracy_at_k(retrieval_results, ground_truth, k=k)
-        metrics[f'accuracy@{k}'] = acc_at_k
-    
-    return metrics
+    return evaluate_retrieval_recall(retrieval_results, ground_truth, k_values)
 
 def compute_classification_accuracy_from_embeddings(embeddings, labels, classifier_func):
     """
