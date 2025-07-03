@@ -13,9 +13,27 @@ The model uses:
 
 ## Files
 
+### Model Definitions
+- `models/vector_field.py` - Vector Field and Gaussian Fourier Projection models
+- `models/rerank_model.py` - Ensemble reranking model for classification
+- `models/__init__.py` - Model package initialization
+
+### Utility Functions
+- `utils/common.py` - Common utilities and shared functions
+- `utils/data_processing.py` - Data loading, processing, and triplet generation
+- `utils/prediction_utils.py` - Prediction and similarity calculation utilities
+- `utils/training_utils.py` - Training-specific utilities and helpers
+- `utils/__init__.py` - Utils package initialization
+
+### Main Scripts
 - `train.py` - Main training script
-- `models.py` - Vector Field and Gaussian Fourier Projection model definitions
-- `utils.py` - Data processing and utility functions
+- `predict.py` - Main prediction/inference script
+
+### Original Notebooks
+- `notebooks/train.ipynb` - Original training notebook
+- `notebooks/predict.ipynb` - Original prediction notebook
+
+### Other Files
 - `requirements.txt` - Python dependencies
 
 ## Installation
@@ -27,9 +45,12 @@ pip install -r requirements.txt
 
 2. Download the dataset:
 ```bash
-# The training script will attempt to download the dataset automatically
-# Or manually download from: https://drive.google.com/uc?id=1I56vd3aWsy_nkY6zdXk4faIM6NSS5mer
+# Download using gdown
+gdown 1I56vd3aWsy_nkY6zdXk4faIM6NSS5mer
+unzip -q data_cifar10_style_public.zip
 ```
+
+   Or download manually from: https://drive.google.com/uc?id=1I56vd3aWsy_nkY6zdXk4faIM6NSS5mer
 
 ## Usage
 
@@ -46,6 +67,44 @@ The script will:
 3. Generate triplets for training
 4. Train the Vector Field model
 5. Save the trained model as `vf_model.pth`
+
+### Prediction/Inference
+
+For image-to-image retrieval with reranking:
+
+1. Download required models:
+```bash
+# Download pretrained Vector Field model
+gdown 1KgzoCoaDoFsLYReWHtX-2MdvflrxSGTQ
+
+# Download ensemble reranking model
+gdown 1d-JhNGHCKGEIc_9vJYJtHwUPGeShJoOC
+unzip -q Rerank_model.zip -d convnextbase-ensemble-metalearner
+```
+
+2. Download test dataset:
+```bash
+# Download private dataset
+gdown 1ttmGZdAZJ-4pA9Kz5SMfvff-G_-Xn0uM
+unzip -q ./ENTRep_Private_Dataset_Update.zip -d ./ENTRep_Private_Dataset_update/
+
+# Download CSV and related data
+gdown 1d66ZMIef0HN8kTfsLzLKlgoAA5NXsI2I
+unzip ./ENTRep_Track2_Private_Data.zip
+```
+
+3. Run prediction:
+```bash
+python predict.py
+```
+
+The prediction pipeline:
+1. Loads CLIP + Vector Field models
+2. Loads ensemble reranking models
+3. Computes embeddings for all images
+4. Performs similarity search with top-5 retrieval
+5. Re-ranks results using class predictions
+6. Saves results to `rerank003.json`
 
 ### Model Architecture
 
@@ -111,7 +170,9 @@ The training produces:
 - scikit-learn
 - Pillow
 - tqdm
+- timm (for reranking models)
 - matplotlib (optional, for visualization)
+- gdown (for downloading datasets and models)
 
 ## Citation
 

@@ -6,23 +6,15 @@ Vector Field Model with Flow Matching for Entity Recognition
 
 import os
 import torch
-import clip
-from PIL import Image
-import torch.nn.functional as F
-import random
-from sklearn.model_selection import train_test_split
-import numpy as np
-import torch.nn as nn
 from pytorch_metric_learning import losses
 from random import shuffle
 from tqdm import tqdm
-import torch.nn.init as init
-from torch.optim.lr_scheduler import ReduceLROnPlateau
-from collections import Counter
-import matplotlib.pyplot as plt
 
-from models import VectorField, GaussianFourierProjection
+from models import VectorField
 from utils import (
+    setup_device_and_clip,
+    set_random_seeds,
+    print_class_distribution,
     load_images_recursively, 
     create_cls_map, 
     generate_parent_child,
@@ -30,19 +22,16 @@ from utils import (
     filter_parent_child,
     split_embeddings,
     filter_cls_map,
-    get_triplet_batch,
+    euler_integration,
+    compute_triplet_loss,
     get_embeddings_labels_from_triplets,
-    print_class_distribution
+    setup_optimizer_and_scheduler,
+    update_learning_rate,
+    check_early_stopping,
+    save_checkpoint,
+    log_training_progress,
+    CLASS_TO_IDX
 )
-
-def setup_device_and_model():
-    """Setup device and load CLIP model"""
-    device = "cuda" if torch.cuda.is_available() else "cpu"
-    print(f"Using device: {device}")
-    
-    # Load CLIP model (ViT-B/32)
-    model, preprocess = clip.load("ViT-B/32", device=device)
-    return device, model, preprocess
 
 def setup_data(img_dir, device, model, preprocess):
     """Load and process all image data"""
@@ -87,84 +76,22 @@ def create_train_test_splits(embeddings, cls_map, parent_child):
     
     return train_triplets, test_triplets, train_cls_map, test_cls_map
 
-def euler_integration(x0, vf, steps=10):
-    """
-    Euler integration with RK4 method
-    Args:
-        x0: initial embeddings [B, D]
-        vf: vector field model (takes in x and t, returns dx/dt)
-        steps: number of integration steps
-    Returns:
-        Transformed embeddings x(T)
-    """
-    dt = 1.0 / steps
-    x = x0
-    for i in range(steps):
-        t = i * dt
-        k1 = vf(x, t)
-        k2 = vf(x + 0.5 * dt * k1, t + 0.5 * dt)
-        k3 = vf(x + 0.5 * dt * k2, t + 0.5 * dt)
-        k4 = vf(x + dt * k3, t + dt)
-        x = x + (dt / 6.0) * (k1 + 2*k2 + 2*k3 + k4)
-    return x
-
-def compute_triplet_loss(model, triplets, loss_func, test_cls_map, class2idx, device, steps=10):
-    """Compute loss using MultiSimilarityLoss"""
-    model.eval()
-    total_loss = 0.0
-    num_batches = 0
-
-    with torch.no_grad():
-        for i in range(0, len(triplets), 64):
-            batch = triplets[i : i + 64]
-            if len(batch) == 0:
-                continue
-
-            batch_embeddings, batch_labels = get_embeddings_labels_from_triplets(batch, test_cls_map, class2idx)
-            if batch_embeddings is None or len(batch_embeddings) == 0:
-                continue
-
-            batch_embeddings = batch_embeddings.to(device).float()
-            batch_labels = batch_labels.to(device).long()
-
-            pred_embeddings = euler_integration(batch_embeddings, model, steps=steps)
-            loss = loss_func(pred_embeddings, batch_labels)
-
-            total_loss += loss.item()
-            num_batches += 1
-
-    return total_loss / max(1, num_batches)
-
 def train_model(train_triplets, test_triplets, train_cls_map, test_cls_map, device):
     """Main training loop"""
-    # Class to index mapping
-    class2idx = {
-        'ear-left': 3,
-        'ear-right': 2,
-        'nose-left': 1,
-        'nose-right': 0,
-        'throat': 6,
-        'vc-closed': 4,
-        'vc-open': 5
-    }
-    
     # Initialize model, loss, optimizer, scheduler
     embed_dim = 512
     vf = VectorField(embed_dim).to(device).float()
-    optimizer = torch.optim.AdamW(vf.parameters(), lr=1e-4)
     loss_func = losses.MultiSimilarityLoss()
     
-    # Hyperparameters
+    # Setup optimizer and scheduler
+    optimizer, scheduler = setup_optimizer_and_scheduler(vf, lr=1e-4)
+    
+    # Training hyperparameters
     warmup_epochs = 20
     early_stop_patience = 40
-    scheduler_patience = 15
-    scheduler_factor = 0.8
     epochs = 200
     batch_size = 32
-    delta = 5e-4  # min change in loss to count as improvement
-    
-    # LR Scheduler & Early Stopping
-    scheduler = ReduceLROnPlateau(optimizer, mode='min', factor=scheduler_factor, patience=scheduler_patience)
+    delta = 5e-4
     
     best_test_loss = float('inf')
     best_train_loss = float('inf')
@@ -188,7 +115,7 @@ def train_model(train_triplets, test_triplets, train_cls_map, test_cls_map, devi
             optimizer.zero_grad()
             
             # Prepare batch embeddings and labels
-            batch_embeddings, batch_labels = get_embeddings_labels_from_triplets(batch, train_cls_map, class2idx)
+            batch_embeddings, batch_labels = get_embeddings_labels_from_triplets(batch, train_cls_map, CLASS_TO_IDX)
 
             if batch_embeddings is None or len(batch_embeddings) == 0:
                 continue
@@ -207,38 +134,29 @@ def train_model(train_triplets, test_triplets, train_cls_map, test_cls_map, devi
             num_batches += 1
 
         # Compute test loss after each epoch 
-        vf.eval()
-        test_loss = compute_triplet_loss(vf, test_triplets, loss_func, test_cls_map, class2idx, device, steps=10)
+        avg_loss = epoch_loss / max(1, num_batches)
+        test_loss = compute_triplet_loss(vf, test_triplets, loss_func, test_cls_map, CLASS_TO_IDX, device, steps=10)
 
-        avg_loss = epoch_loss / max(1, num_batches)  
-
-        # LR Warmup and Scheduler
-        old_lr = optimizer.param_groups[0]['lr']
-        if epoch >= warmup_epochs:
-            scheduler.step(test_loss)
-        else:
-            scheduler.step(float('inf'))
-
-        new_lr = optimizer.param_groups[0]['lr']
-        if new_lr < old_lr:
-            print(f"LR reduced at epoch {epoch + 1} → {new_lr:.1e}")
-
-        # Early stopping combining test and train loss
-        if (test_loss < best_test_loss - delta) or (avg_loss < best_train_loss - delta):
+        # Update learning rate
+        lr_reduced = update_learning_rate(optimizer, scheduler, test_loss, epoch, warmup_epochs)
+        
+        # Check for improvement and early stopping
+        improved = (test_loss < best_test_loss - delta) or (avg_loss < best_train_loss - delta)
+        if improved:
             best_test_loss = min(test_loss, best_test_loss)
             best_train_loss = min(avg_loss, best_train_loss)
             epochs_no_improve = 0
-            torch.save(vf.state_dict(), "best_vf.pt")
+            save_checkpoint(vf, optimizer, epoch, best_test_loss, "best_vf.pt")
         else:
             epochs_no_improve += 1
 
+        # Early stopping check
         if epochs_no_improve >= early_stop_patience:
             print(f"Early stopping at epoch {epoch + 1}")
             break
         
-        # Print progress every 10 epochs
-        if (epoch + 1) % 10 == 0:
-            print(f"Epoch {epoch + 1}: Train Loss = {avg_loss:.4f}, Test Loss = {test_loss:.4f}")
+        # Log progress
+        log_training_progress(epoch, avg_loss, test_loss, optimizer.param_groups[0]['lr'])
 
     # Save final model
     torch.save(vf.state_dict(), "vf_model.pth")
@@ -249,14 +167,11 @@ def train_model(train_triplets, test_triplets, train_cls_map, test_cls_map, devi
 def main():
     """Main execution function"""
     # Set random seeds for reproducibility
-    random.seed(42)
-    torch.manual_seed(42)
-    if torch.cuda.is_available():
-        torch.cuda.manual_seed_all(42)
+    set_random_seeds(42)
     
     # Setup
     img_dir = "./data_cifar10_style_public"
-    device, model, preprocess = setup_device_and_model()
+    device, model, preprocess = setup_device_and_clip()
     
     # Load and process data
     embeddings, cls_map, parent_child, class_to_imgs = setup_data(img_dir, device, model, preprocess)

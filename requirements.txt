@@ -26,6 +26,9 @@ matplotlib>=3.5.0
 # Data Download (Optional)
 gdown>=4.0.0
 
+# Model Libraries (for prediction)
+timm>=0.6.0
+
 # Development Tools (Optional)
 jupyter>=1.0.0
 ipython>=8.0.0
