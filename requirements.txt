@@ -1,0 +1,32 @@
+# Core ML Libraries
+torch>=1.13.0
+torchvision>=0.14.0
+numpy>=1.21.0
+
+# CLIP Model
+git+https://github.com/openai/CLIP.git
+
+
+# Data Processing
+Pillow>=9.0.0
+scikit-learn>=1.0.0
+
+# Text Processing
+ftfy>=6.0.0
+regex>=2022.0.0
+
+# Progress Bars
+tqdm>=4.64.0
+
+# Visualization (Optional)
+matplotlib>=3.5.0
+
+# Data Download (Optional)
+gdown>=4.0.0
+
+# Model Libraries (for prediction)
+timm>=0.6.0
+
+# Development Tools (Optional)
+jupyter>=1.0.0
+ipython>=8.0.0
